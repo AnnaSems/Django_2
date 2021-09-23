@@ -12,6 +12,8 @@ from django.contrib import messages
 from authapp.models import User
 from basketapp.models import Basket
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from authapp.forms import ShopUserProfileEditForm
 
 from django.views.generic.list import ListView
 
@@ -29,28 +31,6 @@ class LoginListView(LoginView):
         context['title'] = 'GeekShop - Авторизация'
         return context
 
-    # def get_queryset(self,**kwargs):
-    #    return f
-
-
-# # функцияя = вьюхи = контролеры.
-# def login(request):
-#     if request.method == 'POST':
-#         form = UserLoginForm(data=request.POST)
-#         if form.is_valid():
-#             username = request.POST['username']
-#             password = request.POST['password']
-#             user = auth.authenticate(username=username, password=password)
-#             if user and user.is_active:
-#                 auth.login(request, user)
-#                 return HttpResponseRedirect(reverse('index'))
-#     else:
-#         form = UserLoginForm()
-#     context = {
-#         'title': 'GeekShop - Авторизация',
-#         'form': form,
-#     }
-#     return render(request, 'authapp/login.html', context)
 
 class RegisterListView(FormView):
     template_name = 'authapp/register.html'
@@ -101,30 +81,6 @@ class RegisterListView(FormView):
             print(f'error activation user : {e.args}')
             return HttpResponseRedirect(reverse('index'))
 
-    # def form_valid(self, form):
-    #     form.save()
-    #     username = self.request.POST['username']
-    #     password = self.request.POST['password1']
-    #     user = authenticate(username=username,password=password)
-    #     login(self.request,user)
-    #     return super(RegisterListView, self).form_valid(form)
-
-
-# def register(request):
-#     if request.method == 'POST':
-#         form = UserRegisterForm(data=request.POST)
-#         if form.is_valid():
-#             form.save()
-#             messages.success(request, 'Вы успешно зарегистрировались!')
-#             return HttpResponseRedirect(reverse('auth:login'))
-#     else:
-#         form = UserRegisterForm()
-#     context = {
-#         'title': 'GeekShop - Регистрация',
-#         'form': form,
-#     }
-#     return render(request, 'authapp/register.html', context)
-
 
 def new_logout(request):
     auth.logout(request)
@@ -146,18 +102,29 @@ class ProfileFormView(FormView):
     def dispatch(self, request, *args, **kwargs):
         return super(ProfileFormView, self).dispatch(request, *args, **kwargs)
 
-# @login_required
-# def profile(request):
-#     if request.method == 'POST':
-#         form = UserProfileForm(data=request.POST, files=request.FILES, instance=request.user)
-#         if form.is_valid():
-#             form.save()
-#             return HttpResponseRedirect(reverse('auth:profile'))
-#     else:
-#         form = UserProfileForm(instance=request.user)
-#
-#     context = {
-#         'form': form,
-#         'title': 'GeekShop - Профиль',
-#         'baskets': Basket.objects.filter(user=request.user), }
-#     return render(request, 'authapp/profile.html', context)
+
+@transaction.atomic
+def edit(request):
+    title = 'редактирование'
+    
+    if request.method == 'POST':
+        edit_form = ShopUserEditForm(request.POST, request.FILES, \
+                                     instance=request.user)
+        profile_form = ShopUserProfileEditForm(request.POST, \
+                                     instance=request.user.shopuserprofile)
+        if edit_form.is_valid() and profile_form.is_valid():
+            edit_form.save()
+            return HttpResponseRedirect(reverse('auth:edit'))
+    else:
+        edit_form = ShopUserEditForm(instance=request.user)
+        profile_form = ShopUserProfileEditForm(
+            instance=request.user.shopuserprofile
+        )
+    
+    content = {
+        'title': title, 
+        'edit_form': edit_form, 
+        'profile_form': profile_form
+    }
+    
+    return render(request, 'authapp/edit.html', content)
